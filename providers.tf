@@ -1,14 +1,13 @@
 terraform {
   required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "4.3.0"
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.61"
     }
   }
   
-   backend "gcs" {}
+  #  backend "gcs" {}
+  backend "s3" {}
 }
 
-provider "google" {
-  project = var.project_id
-}
+provider "aws" {}

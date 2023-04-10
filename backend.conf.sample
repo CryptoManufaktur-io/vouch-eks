@@ -2,4 +2,6 @@
 bucket = "lido-vouchdirk-test-terraform-state"
 
 # Prefix path for state files
-prefix = "terraform"
+key = "terraform"
+
+region = "us-east-1"

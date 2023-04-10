@@ -8,12 +8,7 @@ variable "compute_size" {
   type = string
 }
 
-variable "network" {
-  description = "Network"
-  type = string
-}
-
-variable "subnetwork" {
+variable "subnet_id" {
   description = "Subnetwork"
   type = string
 }
@@ -33,26 +28,21 @@ variable "region" {
   type = string
 }
 
-variable "tags" {
-  description = "Tags for the instance"
-  type        = list(string)
-}
-
 variable "ssh_user" {
   description = "SSH Username"
   type        = string
 }
 
-variable "ssh_pub_key" {
+variable "key_name" {
   description = "SSH Public Key"
   type        = string
 }
 
-variable "ssh_private_key" {
-  description = "SSH Private Key"
-  type        = string
-}
 
 variable "metadata_startup_script" {
   type = string
+}
+
+variable "security_groups" {
+  type = list(string)
 }

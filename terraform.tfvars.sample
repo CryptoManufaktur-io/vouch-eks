@@ -1,24 +1,21 @@
-project_id = "vouchdirk"
-vouch_tag = "1.7.2"
+project_id = "vouch"
+vouch_tag = "1.7.3"
 
-regions = {
-  northamerica-northeast1 = { cidr = "10.108.0.0/20" }
-  us-west1 = { cidr = "10.128.0.0/20" }
-  us-central1 = { cidr = "10.138.0.0/20" }
-  us-east1 = { cidr = "10.148.0.0/20" }
-  us-south1 = { cidr = "10.158.0.0/20" }
-}
+vpc_cidr = "10.0.0.0/16"
+azs = ["us-east-1a", "us-east-1b"]
+public_subnets = ["10.0.90.0/24", "10.0.85.0/24"]
+private_subnets = ["10.0.96.0/24", "10.0.95.0/24"]
 
 # Compute configuration
-compute_size = "e2-small"
+compute_size = "t2.small"
 default_tags = ["ssh"]
 
-hostname_prefix = "lido-vouchdirk"
+ec2_ami = "ami-0fec2c2e2017f4e7b"
 
 compute = {
-  # dirk1 should always have a proxy installed so it can be used in an ssh tunnel for kubectl
-  # it should also be in the same region as the GKE cluster.
-  dirk1 = { region = "us-east1", zone = "b", extra_tags = ["firewall-dirk"], hostname="a", metadata_startup_script = <<EOF
+  # bastion should always have a proxy installed so it can be used in an ssh tunnel for kubectl
+  # it should also be in the same region as the EKS cluster.
+  bastion = { region = "us-east1", zone = "b", extra_tags = ["firewall-dirk"], hostname="a", metadata_startup_script = <<EOF
 #! /bin/bash
 apt-get update
 apt-get install -y tinyproxy
@@ -26,19 +23,11 @@ grep -qxF 'Allow localhost' /etc/tinyproxy/tinyproxy.conf || echo 'Allow localho
 systemctl restart tinyproxy
 EOF
   }
-  dirk2 = { region = "northamerica-northeast1", zone = "b", extra_tags = ["firewall-dirk"], hostname="b", metadata_startup_script="" }
-  dirk3 = { region = "us-central1", zone = "c", extra_tags = ["firewall-dirk"], hostname="c", metadata_startup_script="" }
-  dirk4 = { region = "us-west1", zone = "a", extra_tags = ["firewall-dirk"], hostname="d", metadata_startup_script="" }
-  dirk5 = { region = "us-south1", zone = "c", extra_tags = ["firewall-dirk"], hostname="e", metadata_startup_script="" }
 }
 
-# GKE configuration
-gke = {
-  lido = { region = "us-east1", cidr = "10.100.0.0/20" }
-}
-
-ssh_user = "debian"
-ssh_pub_key = "/path/to/public.pub"
+# Bastion host SSH config
+ssh_user = "admin"
+ssh_key_name = "keypairname"  # name of the Key Pair already imported/created in EC2
 ssh_private_key = "/path/to/private.pem"
 
 # If extra arguments are needed for the ssh command to connect to dirk1 (e.g: going through a Jump host, they can be added here).

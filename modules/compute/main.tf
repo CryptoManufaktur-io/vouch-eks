@@ -1,43 +1,21 @@
-resource "google_compute_address" "ip_address" {
-  name = "${var.compute_name}-ip"
-  region = var.region
+resource "aws_instance" "default" {
+  instance_type = var.compute_size
 
-  lifecycle {
-    ignore_changes = [
-      name
-    ]
+  tags = {
+    Name = var.compute_name
   }
+
+  ami = var.compute_image
+  user_data = var.metadata_startup_script
+  key_name = var.key_name
+  vpc_security_group_ids = var.security_groups
+  subnet_id = var.subnet_id
 }
 
-resource "google_compute_instance" "default" {
-  name         = var.compute_name
-  machine_type = var.compute_size
-  zone         = var.zone
+resource "aws_eip" "ip_address" {
+  vpc = true
 
-  tags = var.tags
-
-  boot_disk {
-    initialize_params {
-      image = var.compute_image
-    }
-  }
-
-  network_interface {
-    network = var.network
-    subnetwork = var.subnetwork
-    access_config {
-      nat_ip = google_compute_address.ip_address.address
-    }
-  }
-
-  metadata = {
-    ssh-keys = "${var.ssh_user}:${file(var.ssh_pub_key)}"
-    startup-script = var.metadata_startup_script
-  }
-
-  lifecycle {
-    ignore_changes = [
-      name
-    ]
-  }
+  instance                  = aws_instance.default.id
+  # associate_with_private_ip = "10.0.0.12"
+  # depends_on                = [aws_internet_gateway.gw]
 }
