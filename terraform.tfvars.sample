@@ -30,7 +30,7 @@ ssh_user = "admin"
 ssh_key_name = "keypairname"  # name of the Key Pair already imported/created in EC2
 ssh_private_key = "/path/to/private.pem"
 
-# If extra arguments are needed for the ssh command to connect to dirk1 (e.g: going through a Jump host, they can be added here).
+# If extra arguments are needed for the ssh command to connect to bastion host (e.g: going through a Jump host, they can be added here).
 ssh_extra_args = ""
 
 # Cloudflare is used to set the DNS records and generate LetsEncrypt ssl certs for the mev-boost service.
