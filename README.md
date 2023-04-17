@@ -55,7 +55,7 @@ export AWS_DEFAULT_REGION=us-east-2
 ```
 - Deploy
 ```shell
-terraform apply
+./deploy.sh
 ```
 
 ## Using kubectl
