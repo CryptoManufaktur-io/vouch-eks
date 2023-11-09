@@ -13,7 +13,7 @@ resource "aws_instance" "default" {
 }
 
 resource "aws_eip" "ip_address" {
-  vpc = true
+  domain = "vpc"
 
   instance                  = aws_instance.default.id
   # associate_with_private_ip = "10.0.0.12"

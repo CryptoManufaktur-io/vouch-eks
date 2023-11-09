@@ -2,3 +2,6 @@ scrape_configs:
   - job_name: 'vouch'
     static_configs:
       - targets: ['vouch-metrics:8081']
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik-metrics:8080']

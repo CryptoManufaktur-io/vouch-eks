@@ -34,7 +34,7 @@ HTTPS_PROXY=http://localhost:8888 eksctl create iamserviceaccount \
 # exit
 
 helm repo add eks https://aws.github.io/eks-charts
-HTTPS_PROXY=http://localhost:8888 kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller//crds?ref=master"
+HTTPS_PROXY=http://localhost:8888 kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller/crds?ref=master"
 
 HTTPS_PROXY=http://localhost:8888 helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
     --set clusterName=$cluster_name \

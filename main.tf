@@ -39,7 +39,7 @@ module "compute" {
   source   = "./modules/compute"
   for_each = var.compute
 
-  compute_name  = "${var.project_id}-${each.key}"
+  compute_name  = "${var.project_id}-${each.value.hostname}"
   compute_image = var.ec2_ami
   compute_size  = var.compute_size
   zone          = "${each.value.region}-${each.value.zone}"
@@ -56,10 +56,9 @@ module "compute" {
 
 module "eks" {
   source                        = "terraform-aws-modules/eks/aws"
-  version = "~> 19.0"
+  version = "19.19.0"
   cluster_name                  = "${var.project_id}-cluster"
-  # cluster_name = "vouch"
-  cluster_version               = "1.24"
+  cluster_version               = "${var.kubernetes_version}"
   subnet_ids                       = module.vpc.private_subnets
   iam_role_name         = "${var.project_id}-cluster-iam-role"
   cluster_enabled_log_types     = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
@@ -129,11 +128,22 @@ data "external" "bastion" {
   program = ["python3", "${path.module}/start_proxy.py"]
   query = {
     project  = var.project_id
-    instance = module.compute["bastion"].ip_address.public_ip
+    instance = module.compute["dirk1"].ip_address.public_ip
     ssh_user = var.ssh_user
     ssh_private_key = var.ssh_private_key
     ssh_extra_args = var.ssh_extra_args
     host = module.eks.cluster_endpoint
+  }
+}
+
+# Promtail config
+resource "kubernetes_config_map" "promtail-config" {
+  metadata {
+    name = "promtail-config"
+  }
+
+  data = {
+    "promtail.yml" = "${file("${path.module}/promtail.yml")}${file("${path.module}/promtail-lokiurl.yml")}"
   }
 }
 
@@ -187,10 +197,14 @@ resource "kubernetes_deployment" "vouch1" {
       }
 
       spec {
+        # Vouch app
         container {
           image = "attestant/vouch:${var.vouch_tag}"
           name  = "vouch1"
-          args = ["--base-dir=/config"]
+          args = [
+            "--base-dir=/config",
+            "--log-file=/var/log/containers/vouch.log"
+          ]
 
           port {
             container_port = 18550
@@ -226,6 +240,11 @@ resource "kubernetes_deployment" "vouch1" {
             name       = "secret"
           }
 
+          volume_mount {
+            mount_path = "/var/log/containers"
+            name       = "app-logs"
+          }
+
           resources {
             limits = {
               cpu    = "1"
@@ -237,6 +256,50 @@ resource "kubernetes_deployment" "vouch1" {
               memory = "2Gi"
             }
           }
+        }
+
+        # Send logs to loki sidecar
+        container {
+          image = "grafana/promtail:latest"
+          name  = "promtail"
+          command = ["/bin/bash", "-c"]
+          args = ["cp /promtail-config.yml /promtail.yml; sed -i \"s/LABEL_SERVER/$LABEL_SERVER/\" \"/promtail.yml\"; /usr/bin/promtail --config.file=/promtail.yml 2>&1 | tee -a /var/log/containers/promtail-vouch.log"]
+
+          env {
+            name = "LABEL_SERVER"
+            value = "${var.project_id}-vouch"
+          }
+
+          volume_mount {
+            mount_path = "/var/log/containers"
+            name       = "app-logs"
+          }
+          volume_mount {
+            mount_path = "/promtail-config.yml"
+            sub_path = "promtail.yml"
+            name       = "promtail-config"
+          }
+
+          resources {
+            limits = {
+              cpu    = "0.25"
+              memory = "128Mi"
+            }
+          }
+        }
+
+        volume {
+          name = "promtail-config"
+
+          config_map {
+            name = "promtail-config"
+            default_mode = "0644"
+          }
+        }
+        
+        volume {
+          name = "app-logs"
+          empty_dir {}
         }
 
         volume {
@@ -464,11 +527,14 @@ resource "kubernetes_deployment" "traefik" {
       spec {
         service_account_name = "traefik-account"
         
+        # Traefik App
         container {
           name  = "traefik"
           image = "traefik:latest"
+          
           args  = [
             "--log.level=DEBUG",
+            "--log.filePath=/var/log/containers/traefik.log", # Will write logs so promtail can scrape them, problem kubectl wont get any logs
             # "--certificatesResolvers.letsencrypt.acme.caServer=https://acme-staging-v02.api.letsencrypt.org/directory",
             "--providers.kubernetesingress",
             "--certificatesresolvers.letsencrypt.acme.dnschallenge=true",
@@ -476,7 +542,9 @@ resource "kubernetes_deployment" "traefik" {
             "--certificatesresolvers.letsencrypt.acme.email=${var.acme_email}",
             "--entrypoints.websecure.address=:443",
             "--entrypoints.websecure.http.tls=true",
-            "--entrypoints.websecure.http.tls.certResolver=letsencrypt"
+            "--entrypoints.websecure.http.tls.certResolver=letsencrypt",
+            "--metrics",
+            "--metrics.prometheus"
           ]
 
           port {
@@ -493,6 +561,55 @@ resource "kubernetes_deployment" "traefik" {
             name  = "CLOUDFLARE_EMAIL"
             value = var.cf_api_email
           }
+
+          volume_mount {
+            mount_path = "/var/log/containers"
+            name       = "app-logs"
+          }          
+        }
+
+        # Send logs to loki sidecar
+        container {
+          image = "grafana/promtail:latest"
+          name  = "promtail"
+          command = ["/bin/bash", "-c"]
+          args = ["cp /promtail-config.yml /promtail.yml; sed -i \"s/LABEL_SERVER/$LABEL_SERVER/\" \"/promtail.yml\"; /usr/bin/promtail --config.file=/promtail.yml 2>&1 | tee -a /var/log/containers/promtail-traefik.log"]
+
+          env {
+            name = "LABEL_SERVER"
+            value = "${var.project_id}-vouch"
+          }
+
+          volume_mount {
+            mount_path = "/var/log/containers"
+            name       = "app-logs"
+          }
+          volume_mount {
+            mount_path = "/promtail-config.yml"
+            sub_path = "promtail.yml"
+            name       = "promtail-config"
+          }
+
+          resources {
+            limits = {
+              cpu    = "0.25"
+              memory = "128Mi"
+            }
+          }
+        }
+
+        volume {
+          name = "promtail-config"
+
+          config_map {
+            name = "promtail-config"
+            default_mode = "0644"
+          }
+        }
+        
+        volume {
+          name = "app-logs"
+          empty_dir {}
         }
       }
     }
@@ -503,38 +620,38 @@ resource "kubernetes_deployment" "traefik" {
   }
 }
 
-resource "kubernetes_service" "traefik_service" {
+# resource "kubernetes_service" "traefik_service" {
 
-  metadata {
-    name = "traefik-service"
+#   metadata {
+#     name = "traefik-service"
 
-    annotations = {
-      "external-dns.alpha.kubernetes.io/hostname" = "${var.mev_subdomain}.${var.cf_domain}"
-      "external-dns.alpha.kubernetes.io/ttl" = 120
-      "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
-      "service.beta.kubernetes.io/aws-load-balancer-type" = "external"
-      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
-      "service.beta.kubernetes.io/aws-load-balancer-target-group-attributes" = "preserve_client_ip.enabled=true"
-    }
-  }
+#     annotations = {
+#       "external-dns.alpha.kubernetes.io/hostname" = "${var.mev_subdomain}.${var.cf_domain}"
+#       "external-dns.alpha.kubernetes.io/ttl" = 120
+#       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
+#       "service.beta.kubernetes.io/aws-load-balancer-type" = "external"
+#       "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+#       "service.beta.kubernetes.io/aws-load-balancer-target-group-attributes" = "preserve_client_ip.enabled=true"
+#     }
+#   }
 
-  spec {
-    port {
-      protocol    = "TCP"
-      port        = 443
-      target_port = 443
-      name = "websecure"
-    }
+#   spec {
+#     port {
+#       protocol    = "TCP"
+#       port        = 443
+#       target_port = 443
+#       name = "websecure"
+#     }
 
-    selector = {
-      app = "traefik"
-    }
+#     selector = {
+#       app = "traefik"
+#     }
 
-    type = "LoadBalancer"
+#     type = "LoadBalancer"
 
-    load_balancer_source_ranges = concat(var.vouch_https_in_addresses, formatlist("%s/32", module.vpc.nat_public_ips))
-  }
-}
+#     load_balancer_source_ranges = concat(var.vouch_https_in_addresses, formatlist("%s/32", module.vpc.nat_public_ips))
+#   }
+# }
 
 resource "kubernetes_ingress_v1" "vouch_ingress" {
   metadata {
@@ -578,7 +695,6 @@ resource "kubernetes_ingress_v1" "vouch_ingress" {
 }
 
 # Prometheus
-
 resource "kubernetes_config_map" "prometheus-config" {
   metadata {
     name = "prometheus-config"
@@ -615,7 +731,7 @@ resource "kubernetes_deployment" "prometheus" {
 
       spec {
         container {
-          image = "ubuntu/prometheus:latest"
+          image = "prom/prometheus:latest"
           name  = "prometheus"
 
           volume_mount {
@@ -652,6 +768,26 @@ resource "kubernetes_service" "vouch_metrics" {
 
     selector = {
       vouch = "vouch1"
+    }
+
+    type = "NodePort"
+  }
+}
+
+resource "kubernetes_service" "traefik_metrics" {
+
+  metadata {
+    name = "traefik-metrics"
+  }
+
+  spec {
+    port {
+      name        = "traefik-metrics"
+      port        = 8080
+    }
+
+    selector = {
+      traefik = "traefik"
     }
 
     type = "NodePort"

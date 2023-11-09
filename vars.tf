@@ -102,3 +102,8 @@ variable "vpc_cidr" {
   description = "VPC CIDR Block"
   type = string
 }
+
+variable "kubernetes_version" {
+  description = "kubernetes version"
+  type = string
+}
