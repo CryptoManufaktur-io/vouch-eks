@@ -620,38 +620,38 @@ resource "kubernetes_deployment" "traefik" {
   }
 }
 
-# resource "kubernetes_service" "traefik_service" {
+resource "kubernetes_service" "traefik_service" {
 
-#   metadata {
-#     name = "traefik-service"
+  metadata {
+    name = "traefik-service"
 
-#     annotations = {
-#       "external-dns.alpha.kubernetes.io/hostname" = "${var.mev_subdomain}.${var.cf_domain}"
-#       "external-dns.alpha.kubernetes.io/ttl" = 120
-#       "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
-#       "service.beta.kubernetes.io/aws-load-balancer-type" = "external"
-#       "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
-#       "service.beta.kubernetes.io/aws-load-balancer-target-group-attributes" = "preserve_client_ip.enabled=true"
-#     }
-#   }
+    annotations = {
+      "external-dns.alpha.kubernetes.io/hostname" = "${var.mev_subdomain}.${var.cf_domain}"
+      "external-dns.alpha.kubernetes.io/ttl" = 120
+      "service.beta.kubernetes.io/aws-load-balancer-nlb-target-type" = "ip"
+      "service.beta.kubernetes.io/aws-load-balancer-type" = "external"
+      "service.beta.kubernetes.io/aws-load-balancer-scheme" = "internet-facing"
+      "service.beta.kubernetes.io/aws-load-balancer-target-group-attributes" = "preserve_client_ip.enabled=true"
+    }
+  }
 
-#   spec {
-#     port {
-#       protocol    = "TCP"
-#       port        = 443
-#       target_port = 443
-#       name = "websecure"
-#     }
+  spec {
+    port {
+      protocol    = "TCP"
+      port        = 443
+      target_port = 443
+      name = "websecure"
+    }
 
-#     selector = {
-#       app = "traefik"
-#     }
+    selector = {
+      app = "traefik"
+    }
 
-#     type = "LoadBalancer"
+    type = "LoadBalancer"
 
-#     load_balancer_source_ranges = concat(var.vouch_https_in_addresses, formatlist("%s/32", module.vpc.nat_public_ips))
-#   }
-# }
+    load_balancer_source_ranges = concat(var.vouch_https_in_addresses, formatlist("%s/32", module.vpc.nat_public_ips))
+  }
+}
 
 resource "kubernetes_ingress_v1" "vouch_ingress" {
   metadata {
