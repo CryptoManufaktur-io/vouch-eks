@@ -60,7 +60,7 @@ module "eks" {
   cluster_name                  = "${var.project_id}-cluster"
   cluster_version               = "${var.kubernetes_version}"
   subnet_ids                       = module.vpc.private_subnets
-  iam_role_name         = "${var.project_id}-cluster-iam-role"
+  iam_role_name         = "${var.project_id}"
   cluster_enabled_log_types     = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
   cluster_endpoint_public_access = false
 
@@ -128,7 +128,7 @@ data "external" "bastion" {
   program = ["python3", "${path.module}/start_proxy.py"]
   query = {
     project  = var.project_id
-    instance = module.compute["dirk1"].ip_address.public_ip
+    instance = module.compute["bastion"].ip_address.public_ip
     ssh_user = var.ssh_user
     ssh_private_key = var.ssh_private_key
     ssh_extra_args = var.ssh_extra_args

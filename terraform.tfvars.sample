@@ -14,9 +14,9 @@ default_tags = ["ssh"]
 ec2_ami = "ami-0ec3d9efceafb89e0" # Debian 12
 
 compute = {
-  # dirk1 should always have a proxy installed so it can be used in an ssh tunnel for kubectl
+  # bastion should always have a proxy installed so it can be used in an ssh tunnel for kubectl
   # it should also be in the same region as the EKS cluster.
-  dirk1 = { region = "us-east2", zone = "b", extra_tags = ["firewall-dirk"], hostname="a", metadata_startup_script = <<EOF
+  bastion = { region = "us-east2", zone = "b", extra_tags = ["firewall-dirk"], hostname="a", metadata_startup_script = <<EOF
 #! /bin/bash
 apt-get update
 apt-get install -y tinyproxy
@@ -24,10 +24,6 @@ grep -qxF 'Allow localhost' /etc/tinyproxy/tinyproxy.conf || echo 'Allow localho
 systemctl restart tinyproxy
 EOF
   }
-  dirk2 = { region = "us-east2", zone = "b", extra_tags = ["firewall-dirk"], hostname="b", metadata_startup_script="" }
-  dirk3 = { region = "us-east2", zone = "b", extra_tags = ["firewall-dirk"], hostname="c", metadata_startup_script="" }
-  dirk4 = { region = "us-east2", zone = "b", extra_tags = ["firewall-dirk"], hostname="d", metadata_startup_script="" }
-  dirk5 = { region = "us-east2", zone = "b", extra_tags = ["firewall-dirk"], hostname="e", metadata_startup_script="" }
 }
 
 # Bastion host SSH config

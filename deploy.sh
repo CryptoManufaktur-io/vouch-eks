@@ -22,6 +22,13 @@ aws eks update-kubeconfig --region $cluster_region --name $cluster_name
 # echo $policy_name
 # echo $cluster_region
 
+# Savior when nothing else works HAHA!!
+# HTTPS_PROXY=http://localhost:8888 eksctl delete iamserviceaccount \
+#   --cluster=$cluster_name \
+#   --namespace=kube-system \
+#   --name=aws-load-balancer-controller \
+#   --region $cluster_region \
+
 HTTPS_PROXY=http://localhost:8888 eksctl create iamserviceaccount \
   --cluster=$cluster_name \
   --namespace=kube-system \
@@ -44,7 +51,7 @@ HTTPS_PROXY=http://localhost:8888 helm upgrade --install aws-load-balancer-contr
     --set serviceAccount.name=aws-load-balancer-controller \
     -n kube-system
 
-# Kill the existing ssh session to the dirk1 proxy.
+# Kill the existing ssh session to the bastion proxy.
 kill $(ps aux | grep '[:]localhost:8888 -N -q -f' | awk '{print $2}')
 
 # Deploy everything else.
