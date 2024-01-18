@@ -15,19 +15,16 @@ aws_account_id=$(terraform output -raw aws_account_id)
 policy_name=$(terraform output -raw lb_controller_policy_name)
 
 aws eks update-kubeconfig --region $cluster_region --name $cluster_name
-# eksctl utils associate-iam-oidc-provider --region $cluster_region --cluster $cluster_name --approve
 
-# echo $cluster_name
-# echo $aws_account_id
-# echo $policy_name
-# echo $cluster_region
+# Get the proxy
+terraform refresh -target=module.eks
 
 # Savior when nothing else works HAHA!!
 # HTTPS_PROXY=http://localhost:8888 eksctl delete iamserviceaccount \
 #   --cluster=$cluster_name \
 #   --namespace=kube-system \
 #   --name=aws-load-balancer-controller \
-#   --region $cluster_region \
+#   --region $cluster_region
 
 HTTPS_PROXY=http://localhost:8888 eksctl create iamserviceaccount \
   --cluster=$cluster_name \
@@ -36,7 +33,7 @@ HTTPS_PROXY=http://localhost:8888 eksctl create iamserviceaccount \
   --attach-policy-arn=arn:aws:iam::$aws_account_id:policy/$policy_name \
   --override-existing-serviceaccounts \
   --approve \
-  --region $cluster_region \
+  --region $cluster_region
 
 # exit
 
