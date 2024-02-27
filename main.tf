@@ -168,6 +168,9 @@ resource "kubernetes_secret" "vouch1-secret" {
     "vouch1.crt" = "${file("${path.module}/config/certs/vouch1.crt")}"
     "vouch1.key" = "${file("${path.module}/config/certs/vouch1.key")}"
     "dirk_authority.crt" = "${file("${path.module}/config/certs/dirk_authority.crt")}"
+    "tempo_client.crt" = "${file("${path.module}/config/certs/tempo_client.crt")}"
+    "tempo_client.key" = "${file("${path.module}/config/certs/tempo_client.key")}"
+    "tempo_authority.crt" = "${file("${path.module}/config/certs/tempo_authority.crt")}"
   }
 }
 
@@ -186,6 +189,7 @@ resource "kubernetes_deployment" "vouch1" {
     selector {
       match_labels = {
         vouch = "vouch1"
+        app = "vouch"
       }
     }
 
@@ -193,11 +197,13 @@ resource "kubernetes_deployment" "vouch1" {
       metadata {
         labels = {
           vouch = "vouch1"
+          app = "vouch"
         }
       }
 
       spec {
         # Vouch app
+        hostname = "${var.mev_subdomain}"
         container {
           image = "attestant/vouch:${var.vouch_tag}"
           name  = "vouch1"
@@ -241,19 +247,39 @@ resource "kubernetes_deployment" "vouch1" {
           }
 
           volume_mount {
+            mount_path = "/config/certs/tempo_client.crt"
+            sub_path = "tempo_client.crt"
+            name       = "secret"
+          }
+
+          volume_mount {
+            mount_path = "/config/certs/tempo_client.key"
+            sub_path = "tempo_client.key"
+            name       = "secret"
+          }
+
+          volume_mount {
+            mount_path = "/config/certs/tempo_authority.crt"
+            sub_path = "tempo_authority.crt"
+            name       = "secret"
+          }
+
+          volume_mount {
             mount_path = "/var/log/containers"
             name       = "app-logs"
           }
 
           resources {
             limits = {
-              cpu    = "1"
-              memory = "2Gi"
+              cpu    = "0.25"
+              memory = "0.5Gi"
+              ephemeral-storage = "100Mi"
             }
 
             requests = {
-              cpu    = "1"
-              memory = "2Gi"
+              cpu    = "0.25"
+              memory = "0.5Gi"
+              ephemeral-storage = "100Mi"
             }
           }
         }
@@ -296,7 +322,7 @@ resource "kubernetes_deployment" "vouch1" {
             default_mode = "0644"
           }
         }
-        
+
         volume {
           name = "app-logs"
           empty_dir {}
@@ -320,111 +346,6 @@ resource "kubernetes_deployment" "vouch1" {
           }
         }
       }
-    }
-  }
-}
-
-resource "kubernetes_service_account" "external_dns" {
-
-  metadata {
-    name = "external-dns"
-  }
-}
-
-resource "kubernetes_cluster_role" "external_dns" {
-
-  metadata {
-    name = "external-dns"
-  }
-
-  rule {
-    verbs      = ["get", "watch", "list"]
-    api_groups = [""]
-    resources  = ["services", "endpoints", "pods"]
-  }
-
-  rule {
-    verbs      = ["get", "watch", "list"]
-    api_groups = ["extensions", "networking.k8s.io"]
-    resources  = ["ingresses"]
-  }
-  
-  rule {
-    verbs      = ["get", "watch", "list"]
-    api_groups = [""]
-    resources  = ["endpoints"]
-  }
-  
-
-  rule {
-    verbs      = ["list", "watch"]
-    api_groups = [""]
-    resources  = ["nodes"]
-  }
-}
-
-resource "kubernetes_cluster_role_binding" "external_dns_viewer" {
-
-  metadata {
-    name = "external-dns-viewer"
-  }
-
-  subject {
-    kind      = "ServiceAccount"
-    name      = "external-dns"
-    namespace = "default"
-  }
-
-  role_ref {
-    api_group = "rbac.authorization.k8s.io"
-    kind      = "ClusterRole"
-    name      = "external-dns"
-  }
-}
-
-resource "kubernetes_deployment" "external_dns" {
-
-  metadata {
-    name = "external-dns"
-  }
-
-  spec {
-    selector {
-      match_labels = {
-        app = "external-dns"
-      }
-    }
-
-    template {
-      metadata {
-        labels = {
-          app = "external-dns"
-        }
-      }
-
-      spec {
-        container {
-          name  = "external-dns"
-          image = "registry.k8s.io/external-dns/external-dns:v0.13.2"
-          args  = ["--source=service", "--source=ingress", "--domain-filter=${var.cf_domain}", "--provider=cloudflare", "--registry=txt", "--txt-owner-id=${var.mev_subdomain}"]
-
-          env {
-            name  = "CF_API_KEY"
-            value = var.cf_api_key
-          }
-
-          env {
-            name  = "CF_API_EMAIL"
-            value = var.cf_api_email
-          }
-        }
-
-        service_account_name = "external-dns"
-      }
-    }
-
-    strategy {
-      type = "Recreate"
     }
   }
 }
@@ -498,10 +419,83 @@ resource "kubernetes_cluster_role_binding" "traefik_role_binding" {
   }
 }
 
+resource "aws_efs_file_system" "traefik_pvc_efs" {
+  creation_token = "traefik_pvc"
+}
+
+resource "aws_efs_mount_target" "traefik_pvc_efs_mount_target" {
+  depends_on = [ module.vpc ]
+  for_each = toset(module.vpc.private_subnets)
+
+  file_system_id  = aws_efs_file_system.traefik_pvc_efs.id
+  subnet_id   	= each.value
+  # subnet_id   	= "subnet-test"
+  security_groups = [aws_security_group.allow_nfs_inbound.id]
+}
+
+resource "aws_security_group" "allow_nfs_inbound" {
+  name    	  = "allow_nfs_inbound"
+  description = "Allow NFS inbound traffic from provided security group"
+  vpc_id  	  = module.vpc.vpc_id
+
+  ingress {
+    description 	= "NFS from VPC"
+    from_port   	= 2049
+    to_port     	= 2049
+    protocol    	= "tcp"
+    security_groups = [module.eks.cluster_primary_security_group_id]
+  }
+}
+
+resource "kubernetes_persistent_volume_v1" "traefik_pv" {
+  metadata {
+	  name = "traefik-pv"
+  }
+
+  spec {
+    capacity = {
+      storage = "1Mi"
+    }
+
+    volume_mode    	= "Filesystem"
+    access_modes   	= ["ReadWriteOnce"]
+    storage_class_name = "gp2"
+
+    persistent_volume_source {
+      csi {
+        driver    	= "efs.csi.aws.com"
+        volume_handle = aws_efs_file_system.traefik_pvc_efs.id
+      }
+    }
+  }
+}
+
+resource "kubernetes_persistent_volume_claim_v1" "traefik_pvc" {
+  wait_until_bound = false
+
+  metadata {
+    name      = "traefik-pvc"
+  }
+
+  spec {
+    volume_mode    	= "Filesystem"
+    access_modes = ["ReadWriteOnce"]
+
+    resources {
+      requests = {
+        storage = "1Mi"
+      }
+    }
+
+    volume_name = "${kubernetes_persistent_volume_v1.traefik_pv.metadata.0.name}"
+  }
+}
+
 resource "kubernetes_deployment" "traefik" {
 
   depends_on = [
-    kubernetes_service_account.traefik_account
+    kubernetes_service_account.traefik_account,
+    kubernetes_persistent_volume_v1.traefik_pv
   ]
 
   metadata {
@@ -526,12 +520,10 @@ resource "kubernetes_deployment" "traefik" {
 
       spec {
         service_account_name = "traefik-account"
-        
-        # Traefik App
+
         container {
           name  = "traefik"
           image = "traefik:latest"
-          
           args  = [
             "--log.level=DEBUG",
             "--log.filePath=/var/log/containers/traefik.log", # Will write logs so promtail can scrape them, problem kubectl wont get any logs
@@ -540,6 +532,7 @@ resource "kubernetes_deployment" "traefik" {
             "--certificatesresolvers.letsencrypt.acme.dnschallenge=true",
             "--certificatesresolvers.letsencrypt.acme.dnschallenge.provider=cloudflare",
             "--certificatesresolvers.letsencrypt.acme.email=${var.acme_email}",
+            "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json",
             "--entrypoints.websecure.address=:443",
             "--entrypoints.websecure.http.tls=true",
             "--entrypoints.websecure.http.tls.certResolver=letsencrypt",
@@ -553,19 +546,33 @@ resource "kubernetes_deployment" "traefik" {
           }
 
           env {
-            name  = "CLOUDFLARE_API_KEY"
-            value = var.cf_api_key
+            name  = "CF_DNS_API_TOKEN"
+            value = var.cf_api_token
           }
 
-          env {
-            name  = "CLOUDFLARE_EMAIL"
-            value = var.cf_api_email
+          volume_mount {
+            mount_path = "/letsencrypt"
+            name      = "traefik-certs"
           }
 
           volume_mount {
             mount_path = "/var/log/containers"
             name       = "app-logs"
-          }          
+          }
+
+          resources {
+            limits = {
+              cpu    = "0.25"
+              memory = "0.5Gi"
+              ephemeral-storage = "10Mi"
+            }
+
+            requests = {
+              cpu    = "0.25"
+              memory = "0.5Gi"
+              ephemeral-storage = "10Mi"
+            }
+          }
         }
 
         # Send logs to loki sidecar
@@ -610,6 +617,13 @@ resource "kubernetes_deployment" "traefik" {
         volume {
           name = "app-logs"
           empty_dir {}
+        }
+
+        volume {
+          name = "traefik-certs"
+          persistent_volume_claim {
+            claim_name = "traefik-pvc"
+          }
         }
       }
     }
@@ -767,7 +781,7 @@ resource "kubernetes_service" "vouch_metrics" {
     }
 
     selector = {
-      vouch = "vouch1"
+      app = "vouch"
     }
 
     type = "NodePort"
@@ -787,77 +801,12 @@ resource "kubernetes_service" "traefik_metrics" {
     }
 
     selector = {
-      traefik = "traefik"
+      app = "traefik"
     }
 
     type = "NodePort"
   }
 }
-
-# resource "kubernetes_deployment" "whoami" {
-#   metadata {
-#     name = "whoami"
-
-#     labels = {
-#       app = "traefiklabs"
-
-#       name = "whoami"
-#     }
-#   }
-
-#   spec {
-#     replicas = 1
-
-#     selector {
-#       match_labels = {
-#         app = "traefiklabs"
-#         task = "whoami"
-#       }
-#     }
-
-#     template {
-#       metadata {
-#         labels = {
-#           app = "traefiklabs"
-
-#           task = "whoami"
-#         }
-#       }
-
-#       spec {
-#         container {
-#           name  = "whoami"
-#           image = "traefik/whoami"
-
-#           port {
-#             container_port = 80
-#           }
-#         }
-#       }
-#     }
-#   }
-# }
-
-# resource "kubernetes_service" "whoami" {
-#   metadata {
-#     name = "whoami"
-#   }
-
-#   spec {
-#     port {
-#       name = "http"
-#       port = 80
-#       target_port = 80
-#     }
-
-#     selector = {
-#       app = "traefiklabs"
-#       task = "whoami"
-#     }
-
-#     type = "NodePort"
-#   }
-# }
 
 output "kubernetes_cluster_name" {
   value = module.eks.cluster_name
@@ -891,4 +840,12 @@ output "compute_addresses" {
 
 output "lb_controller_policy_name" {
   value = aws_iam_policy.aws_load_balancer_controller_policy.name
+}
+
+output "cluster_primary_security_group_id" {
+  value = module.eks.cluster_primary_security_group_id
+}
+
+output "private_subnets" {
+  value = module.vpc.private_subnets
 }
