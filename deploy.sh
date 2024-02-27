@@ -51,5 +51,11 @@ HTTPS_PROXY=http://localhost:8888 helm upgrade --install aws-load-balancer-contr
 # Kill the existing ssh session to the bastion proxy.
 kill $(ps aux | grep '[:]localhost:8888 -N -q -f' | awk '{print $2}')
 
+
+# Deploy persistent volume for traefik.
+terraform apply -target=aws_efs_file_system.traefik_pvc_efs -target=aws_efs_mount_target.traefik_pvc_efs_mount_target -target=aws_security_group.allow_nfs_inbound
+terraform apply -target=kubernetes_persistent_volume_v1.traefik_pv
+terraform apply -target=kubernetes_persistent_volume_claim_v1.traefik_pvc
+
 # Deploy everything else.
 terraform apply

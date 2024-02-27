@@ -53,12 +53,7 @@ variable "acme_email" {
   type = string
 }
 
-variable "cf_api_email" {
-  description = "CloudFlare Global API Email"
-  type        = string
-}
-
-variable "cf_api_key" {
+variable "cf_api_token" {
   description = "CloudFlare Global API Key"
   type        = string
 }
