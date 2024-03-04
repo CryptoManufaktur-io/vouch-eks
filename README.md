@@ -31,7 +31,7 @@ Configuration of the NLB is done via annotations and spec on the Traefik Service
 
 ## Requirements
 
-- Cloudflare Global API keys.
+- Cloudflare API token.
 - [aws cli](https://aws.amazon.com/cli/) with a profile already configured
 - [kubectl cli](https://kubernetes.io/docs/tasks/tools/#kubectl)
 - [eksctl cli](https://eksctl.io/)
@@ -44,15 +44,18 @@ Configuration of the NLB is done via annotations and spec on the Traefik Service
 - Copy `backend.conf.sample` to `backend.conf` and set the Bucket name and Prefix for Terraform state data.
 - Copy `terraform.tfvars.sample` to `terraform.tfvars` and modify as needed.
 - Copy `prometheus-custom.yml.sample` to `prometheus-custom.yml` and modify as needed. Prometheus is not exposed in this use case and remote write is expected.
-- Initialize terraform:
-```shell
-terraform init -backend-config=backend.conf
-```
+- Copy `promtail-lokiurl.yml.sample` to `promtail-lokiurl.yml` and modify as needed.
+
 - Set AWS environment variables:
 ```shell
 export AWS_PROFILE=your-profile-name
 export AWS_DEFAULT_REGION=us-east-2
 ```
+- Initialize terraform:
+```shell
+terraform init -backend-config=backend.conf
+```
+
 - Deploy
 ```shell
 ./deploy.sh

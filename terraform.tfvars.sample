@@ -1,6 +1,6 @@
 project_id = "vouch"
-vouch_tag = "1.7.3"
-kubernetes_version = "1.28"
+vouch_tag = "1.8.0"
+kubernetes_version = "1.29"
 
 vpc_cidr = "10.0.0.0/16"
 azs = ["us-east-1a", "us-east-1b"]
@@ -16,7 +16,7 @@ ec2_ami = "ami-0ec3d9efceafb89e0" # Debian 12
 compute = {
   # bastion should always have a proxy installed so it can be used in an ssh tunnel for kubectl
   # it should also be in the same region as the EKS cluster.
-  bastion = { region = "us-east2", zone = "b", extra_tags = ["firewall-dirk"], hostname="a", metadata_startup_script = <<EOF
+  bastion = { region = "us-east-2", zone = "b", extra_tags = ["firewall-dirk"], hostname="a", metadata_startup_script = <<EOF
 #! /bin/bash
 apt-get update
 apt-get install -y tinyproxy
@@ -36,8 +36,7 @@ ssh_extra_args = ""
 
 # Cloudflare is used to set the DNS records and generate LetsEncrypt ssl certs for the mev-boost service.
 acme_email = "user@example.com"
-cf_api_email = "user@example.com"
-cf_api_key = "APIKEY"
+cf_api_token = "theapitoken"
 cf_domain = "example.com"
 
 mev_subdomain = "mev-vouchdirk"

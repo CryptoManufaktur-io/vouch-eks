@@ -420,7 +420,7 @@ resource "kubernetes_cluster_role_binding" "traefik_role_binding" {
 }
 
 resource "aws_efs_file_system" "traefik_pvc_efs" {
-  creation_token = "traefik_pvc"
+  creation_token = "${var.project_id}_pvc"
 }
 
 resource "aws_efs_mount_target" "traefik_pvc_efs_mount_target" {
