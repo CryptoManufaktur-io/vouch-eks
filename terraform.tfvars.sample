@@ -8,7 +8,7 @@ public_subnets = ["10.0.90.0/24", "10.0.85.0/24"]
 private_subnets = ["10.0.96.0/24", "10.0.95.0/24"]
 
 # Compute configuration
-compute_size = "t2.small"
+compute_size = "t3a.small"
 default_tags = ["ssh"]
 
 ec2_ami = "ami-0ec3d9efceafb89e0" # Debian 12
