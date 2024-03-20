@@ -102,3 +102,23 @@ variable "kubernetes_version" {
   description = "kubernetes version"
   type = string
 }
+
+variable "kube_proxy_version" {
+  description = "kube-proxy version"
+  type = string
+}
+
+variable "vpc_cni_version" {
+  description = "vpc-cni version"
+  type = string
+}
+
+variable "coredns_version" {
+  description = "coredns version"
+  type = string
+}
+
+variable "kms_arns" {
+  description = "List of ARNs that get permissions to the EKS cluster KMS key"
+  type = list(string)
+}

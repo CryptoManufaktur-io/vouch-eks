@@ -65,9 +65,14 @@ module "eks" {
   cluster_endpoint_public_access = false
 
   cluster_addons = {
-    kube-proxy = {}
-    vpc-cni    = {}
+    kube-proxy = {
+      addon_version = var.kube_proxy_version
+    }
+    vpc-cni    = {
+      addon_version = var.vpc_cni_version
+    }
     coredns = {
+      addon_version = var.coredns_version
       configuration_values = jsonencode({
         computeType = "Fargate"
       })
@@ -96,9 +101,6 @@ module "eks" {
       selectors = [
         {
           namespace = "kube-system"
-          # labels = {
-          #   k8s-app = "kube-dns"
-          # }
         },
         {
           namespace = "default"
@@ -107,6 +109,8 @@ module "eks" {
       subnets = flatten([module.vpc.private_subnets])
     }
   }
+
+  kms_key_administrators = var.kms_arns
 }
 
 provider "kubernetes" {
@@ -272,13 +276,13 @@ resource "kubernetes_deployment" "vouch1" {
           resources {
             limits = {
               cpu    = "0.25"
-              memory = "1Gi"
+              memory = "1.5Gi"
               ephemeral-storage = "100Mi"
             }
 
             requests = {
               cpu    = "0.25"
-              memory = "1Gi"
+              memory = "1.5Gi"
               ephemeral-storage = "100Mi"
             }
           }
