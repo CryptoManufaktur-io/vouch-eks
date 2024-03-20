@@ -110,7 +110,28 @@ module "eks" {
     }
   }
 
-  kms_key_administrators = var.kms_arns
+  kms_key_administrators = concat(var.admin_role_arns, var.admin_user_arns)
+
+  # aws-auth configmap
+  manage_aws_auth_configmap = true
+
+  aws_auth_roles = [
+    for arn in var.admin_role_arns:
+      {
+        rolearn  = arn
+        username = "role-${reverse(split(":", arn))[0]}"
+        groups   = ["system:masters"]
+      }
+  ]
+
+  aws_auth_users = [
+    for arn in var.admin_user_arns:
+      {
+        userarn  = arn
+        username = "user-${reverse(split(":", arn))[0]}"
+        groups   = ["system:masters"]
+      }
+  ]
 }
 
 provider "kubernetes" {
@@ -433,7 +454,6 @@ resource "aws_efs_mount_target" "traefik_pvc_efs_mount_target" {
 
   file_system_id  = aws_efs_file_system.traefik_pvc_efs.id
   subnet_id   	= each.value
-  # subnet_id   	= "subnet-test"
   security_groups = [aws_security_group.allow_nfs_inbound.id]
 }
 

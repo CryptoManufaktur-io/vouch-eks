@@ -118,7 +118,12 @@ variable "coredns_version" {
   type = string
 }
 
-variable "kms_arns" {
-  description = "List of ARNs that get permissions to the EKS cluster KMS key"
+variable "admin_role_arns" {
+  description = "List of IAM Role ARNs that get admin permissions"
+  type = list(string)
+}
+
+variable "admin_user_arns" {
+  description = "List of IAM User ARNs that get admin permissions"
   type = list(string)
 }
