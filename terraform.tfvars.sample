@@ -7,6 +7,18 @@ azs = ["us-east-1a", "us-east-1b"]
 public_subnets = ["10.0.90.0/24", "10.0.85.0/24"]
 private_subnets = ["10.0.96.0/24", "10.0.95.0/24"]
 
+# Cluster
+kube_proxy_version = "v1.29.1-eksbuild.2"
+vpc_cni_version = "v1.16.4-eksbuild.2"
+coredns_version = "v1.11.1-eksbuild.6"
+admin_role_arns = [
+    "arn:aws:iam::123456789012:role/SuperDuperUser",
+]
+admin_user_arns = [
+    "arn:aws:iam::123456789012:user/jdoe",
+    "arn:aws:iam::123456789012:root"
+]
+
 # Compute configuration
 compute_size = "t3a.small"
 default_tags = ["ssh"]

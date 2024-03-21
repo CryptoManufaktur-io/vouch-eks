@@ -119,11 +119,11 @@ variable "coredns_version" {
 }
 
 variable "admin_role_arns" {
-  description = "List of IAM Role ARNs that get admin permissions"
+  description = "List of IAM Role ARNs that get admin permissions to manage the cluster"
   type = list(string)
 }
 
 variable "admin_user_arns" {
-  description = "List of IAM User ARNs that get admin permissions"
+  description = "List of IAM User ARNs that get admin permissions to manage the cluster"
   type = list(string)
 }
