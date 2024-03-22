@@ -1,19 +1,21 @@
 #!/bin/bash
 
 print_usage() {
-  echo "You must provide 1 argument, lido number to switch to."
-  echo "Usage: $0 <lido-number: can either be 1 or 2 or 3>"
-  exit 1
+  if [ $# -ne 3 ]; then
+    echo "You must provide 3 arguments, lido number to switch to, bastion username and SSH keys directory."
+    echo "Usage: $0 <bastion_username> <ssh_keys_dir: e.g ~/.ssh/ssh-keys> <lido-number: 1/2/3>"
+    exit 1
+  fi
 }
 
 set_variables() {
   WORK_DIR=$(dirname "$(readlink -f "${BASH_SOURCE}")")
-  BASTION_USERNAME=$(cat /etc/cmf/bastion_username)
-  SSH_KEY_DIR=$(cat /etc/cmf/ssh_keys)
-  COPY_LIDO="$1"
+  BASTION_USERNAME="$1"
+  SSH_KEY_DIR=$(readlink -f "${2}")
+  COPY_LIDO="$3"
 
-  read -p "Enter AWS_PROFILE, if not provided will use [default]: " AWS_PROFILE
-  AWS_PROFILE=${AWS_PROFILE:-default}
+  read -p "Enter AWS_PROFILE, if not provided will use [admin]: " AWS_PROFILE
+  AWS_PROFILE=${AWS_PROFILE:-admin}
 
   read -p "Enter AWS_DEFAULT_REGION, if not provided will use [us-east-2]: " AWS_DEFAULT_REGION
   AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-2}
@@ -21,20 +23,20 @@ set_variables() {
 
 copy_files() {
   rm -rf config/ backend.conf terraform.tfvars prometheus-custom.yml promtail-lokiurl.yml 
-  # rm -rf .terraform*
+  rm -rf .terraform*
 
   cp -r ../lido-keys/lido$COPY_LIDO/config .
   cp ../lido-keys/lido$COPY_LIDO/backend.conf .
   cp ../lido-keys/lido$COPY_LIDO/terraform.tfvars .
-  cp ../lido-keys/lido$COPY_LIDO/prometheus-remoteurl.yml ./prometheus-custom.yml
+  cp ../lido-keys/lido$COPY_LIDO/prometheus-custom.yml ./prometheus-custom.yml
   cp ../lido-keys/lido$COPY_LIDO/promtail-lokiurl.yml .
 }
 
 update_ssh_key_path() {
   if [[ "$(uname)" == "Darwin" ]]; then
-    sed -i '' "s#/home/yorick/.ssh#$SSH_KEY_DIR#g" terraform.tfvars
+    sed -i '' "s#^ssh_private_key = .*#ssh_private_key = \"$SSH_KEY_DIR/cmf-east-2.pem\"#" terraform.tfvars
   elif [[ "$(uname)" == "Linux" ]]; then
-    sed -i "s#/home/yorick/.ssh#$SSH_KEY_DIR#g" terraform.tfvars
+    sed -i "s#^ssh_private_key = .*#ssh_private_key = \"$SSH_KEY_DIR/cmf-east-2.pem\"#" terraform.tfvars
   fi
 }
 
@@ -53,12 +55,13 @@ switch_terraform() {
 
   # Terraform
   terraform init -backend-config=backend.conf -reconfigure -upgrade
+
+  # switch kubectl context
+  ./switch-terraform.sh
 }
 
 main() {
-  if [ $# -ne 1 ]; then
-    print_usage
-  fi
+  print_usage "$@"
 
   set_variables "$@"
   copy_files
