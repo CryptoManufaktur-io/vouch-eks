@@ -13,12 +13,6 @@ set_variables() {
   BASTION_USERNAME="$1"
   SSH_KEY_DIR=$(readlink -f "${2}")
   COPY_LIDO="$3"
-
-  read -p "Enter AWS_PROFILE, if not provided will use [admin]: " AWS_PROFILE
-  AWS_PROFILE=${AWS_PROFILE:-admin}
-
-  read -p "Enter AWS_DEFAULT_REGION, if not provided will use [us-east-2]: " AWS_DEFAULT_REGION
-  AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-2}
 }
 
 copy_files() {
@@ -60,19 +54,42 @@ switch_terraform() {
   ./switch-terraform.sh
 }
 
+get_aws_details() {
+  read -p "Enter AWS_PROFILE, if not provided will use [admin]: " AWS_PROFILE
+  AWS_PROFILE=${AWS_PROFILE:-admin}
+
+  bucket_region=$(grep '^region' backend.conf | awk -F '"' '{print $2}')
+  bastion_region=$(grep -A 2 'bastion' terraform.tfvars | grep 'region' | awk -F '"' '{print $2}' | tr -d '\n')
+
+  if [ $bucket_region == $bastion_region ]; then
+    read -p "Enter AWS_DEFAULT_REGION, default if not provided is bucket/bastion region [$bucket_region]: " AWS_DEFAULT_REGION
+  else
+    read -p "Enter AWS_DEFAULT_REGION, bucket region [$bucket_region] is different from bastion region [$bastion_region]. Enter correct region, will use bucket region if not provided: " AWS_DEFAULT_REGION
+  fi
+
+  AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-$bucket_region}
+}
+
 main() {
   print_usage "$@"
 
   set_variables "$@"
   copy_files
+  get_aws_details
   update_ssh_key_path
   update_ssh_extra_args
 
   switch_terraform
 
-  echo "You now need to execute the following commands if not already done so."
+  echo
+  echo "-------------------------------------------------------------------------------------------------------"
+  echo "You now need to execute the following commands to change aws variables. NB Confirm this matches the region of s3 bucket and kubectl bastion otherwise errors occur."
   echo
   echo "export AWS_PROFILE='$AWS_PROFILE' && export AWS_DEFAULT_REGION='$AWS_DEFAULT_REGION'"
+  echo
+  echo
+  echo "-------------------------------------------------------------------------------------------------------"
+
 }
 
 main "$@"
