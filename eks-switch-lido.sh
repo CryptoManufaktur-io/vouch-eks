@@ -19,11 +19,11 @@ copy_files() {
   rm -rf config/ backend.conf terraform.tfvars prometheus-custom.yml promtail-lokiurl.yml 
   rm -rf .terraform*
 
-  cp -r ../lido-keys/lido$COPY_LIDO/config .
-  cp ../lido-keys/lido$COPY_LIDO/backend.conf .
-  cp ../lido-keys/lido$COPY_LIDO/terraform.tfvars .
-  cp ../lido-keys/lido$COPY_LIDO/prometheus-custom.yml ./prometheus-custom.yml
-  cp ../lido-keys/lido$COPY_LIDO/promtail-lokiurl.yml .
+  cp -r ../lido-config/lido$COPY_LIDO/config .
+  cp ../lido-config/lido$COPY_LIDO/backend.conf .
+  cp ../lido-config/lido$COPY_LIDO/terraform.tfvars .
+  cp ../lido-config/lido$COPY_LIDO/prometheus-custom.yml ./prometheus-custom.yml
+  cp ../lido-config/lido$COPY_LIDO/promtail-lokiurl.yml .
 }
 
 update_ssh_key_path() {
