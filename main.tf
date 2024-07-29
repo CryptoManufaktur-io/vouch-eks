@@ -547,7 +547,7 @@ resource "kubernetes_deployment" "traefik" {
 
         container {
           name  = "traefik"
-          image = "traefik:latest"
+          image = "traefik:${var.traefik_version}"
           args  = [
             "--log.level=DEBUG",
             "--log.filePath=/var/log/containers/traefik.log", # Will write logs so promtail can scrape them, problem kubectl wont get any logs

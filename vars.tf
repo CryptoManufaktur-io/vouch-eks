@@ -127,3 +127,8 @@ variable "admin_user_arns" {
   description = "List of IAM User ARNs that get admin permissions to manage the cluster"
   type = list(string)
 }
+
+variable "traefik_version" {
+  description = "traefik version"
+  type = string
+}
