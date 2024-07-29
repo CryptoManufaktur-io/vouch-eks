@@ -404,7 +404,7 @@ resource "kubernetes_cluster_role" "traefik_role" {
   rule {
     verbs      = ["get", "list", "watch"]
     api_groups = [""]
-    resources  = ["services", "endpoints", "secrets"]
+    resources  = ["services", "endpoints", "secrets", "pods", "nodes"]
   }
 
   rule {
@@ -417,6 +417,12 @@ resource "kubernetes_cluster_role" "traefik_role" {
     verbs      = ["update"]
     api_groups = ["extensions", "networking.k8s.io"]
     resources  = ["ingresses/status"]
+  }
+
+  rule {
+    verbs      = ["list", "watch"]
+    api_groups = ["discovery.k8s.io"]
+    resources  = ["endpointslices"]
   }
 }
 
