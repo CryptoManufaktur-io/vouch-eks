@@ -110,7 +110,7 @@ module "eks" {
     }
   }
 
-  kms_key_administrators = concat(var.admin_role_arns, var.admin_user_arns)
+  kms_key_administrators = var.kms_key_admin_arns
 
   # aws-auth configmap
   manage_aws_auth_configmap = true
@@ -118,8 +118,8 @@ module "eks" {
   aws_auth_roles = [
     for arn in var.admin_role_arns:
       {
-        rolearn  = arn
-        username = "role-${reverse(split(":", arn))[0]}"
+        rolearn  = arn[0]
+        username = arn[1]
         groups   = ["system:masters"]
       }
   ]
