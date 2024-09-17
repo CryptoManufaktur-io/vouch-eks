@@ -55,8 +55,8 @@ switch_terraform() {
 }
 
 get_aws_details() {
-  read -p "Enter AWS_PROFILE, if not provided will use [admin]: " AWS_PROFILE
-  AWS_PROFILE=${AWS_PROFILE:-admin}
+  read -p "Enter AWS_PROFILE, if not provided will use [cmf]: " AWS_PROFILE
+  AWS_PROFILE=${AWS_PROFILE:-cmf}
 
   bucket_region=$(grep '^region' backend.conf | awk -F '"' '{print $2}')
   bastion_region=$(grep -A 2 'bastion' terraform.tfvars | grep 'region' | awk -F '"' '{print $2}' | tr -d '\n')
@@ -68,6 +68,9 @@ get_aws_details() {
   fi
 
   AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-$bucket_region}
+
+  export AWS_PROFILE="$AWS_PROFILE"
+  export AWS_DEFAULT_REGION="$AWS_DEFAULT_REGION"
 }
 
 main() {
