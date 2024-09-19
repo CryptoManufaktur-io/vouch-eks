@@ -18,6 +18,11 @@ variable "vouch_tag" {
   type        = string
 }
 
+variable "vouch_mem" {
+  description = "Vouch max memory"
+  type        = string
+}
+
 variable "azs" {
   description = "List of availability zones used"
   type        = list(string)
